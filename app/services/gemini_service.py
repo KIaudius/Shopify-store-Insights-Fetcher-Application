@@ -5,6 +5,7 @@ import json
 import time
 from typing import List, Dict, Any
 import google.generativeai as genai
+from google.api_core.exceptions import ResourceExhausted
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,17 +16,15 @@ class GeminiService:
         if not api_key:
             raise ValueError("GEMINI_API_KEY not found in environment variables")
         # Initialize the Gen AI client
-        self.client = genai.Client(api_key=api_key)
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel("gemini-1.5-flash")
 
     def _call_gemini(self, prompt: str, json_output: bool = True):
         max_retries = 5
         base_delay = 2  # seconds
         for attempt in range(max_retries):
             try:
-                response = self.client.models.generate_content(
-                    model="gemini-2.0-flash",
-                    contents=prompt
-                )
+                response = self.model.generate_content(contents=prompt)
                 if not json_output:
                     return response.text.strip()
                 
@@ -38,19 +37,21 @@ class GeminiService:
 
                 return json.loads(text_response)
 
-            except Exception as e:
-                if "429" in str(e) and attempt < max_retries - 1:
+            except ResourceExhausted as e:
+                if attempt < max_retries - 1:
                     delay = base_delay * (2 ** attempt)
                     print(f"Rate limit hit. Retrying in {delay} seconds...")
                     time.sleep(delay)
                     continue
-                elif isinstance(e, json.JSONDecodeError):
-                    print(f"Error decoding JSON from Gemini: {e}")
-                    # print(f"Raw response was: {response.text}") # response might not be defined
-                    return {} if json_output else ""
                 else:
-                    print(f"An error occurred calling Gemini API on attempt {attempt + 1}: {e}")
-                    break # Break on other errors
+                    print(f"Final retry failed for rate limit: {e}")
+                    break
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON from Gemini: {e}")
+                return {} if json_output else ""
+            except Exception as e:
+                print(f"An unexpected error occurred calling Gemini API: {e}")
+                break
 
         # Return default value if all retries fail
         print("All retries failed for Gemini API call.")
