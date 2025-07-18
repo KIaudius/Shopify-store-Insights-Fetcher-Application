@@ -252,7 +252,11 @@ class ShopifyScraper:
             
             # Extract FAQs using Gemini
             faqs_data = self.gemini_service.extract_faqs(html_content)
-            faqs = [FAQ(**faq) for faq in faqs_data if isinstance(faq, dict)]
+            faqs = [
+                FAQ(**faq)
+                for faq in faqs_data
+                if isinstance(faq, dict) and 'question' in faq and 'answer' in faq
+            ]
             
             # Extract contact info using Gemini
             contact_data = self.gemini_service.extract_contact_info(html_content)
