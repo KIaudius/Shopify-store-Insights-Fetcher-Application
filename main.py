@@ -6,6 +6,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from tenacity import retry, stop_after_attempt, wait_fixed, before_sleep_log
+import logging
 
 # Add project root to the Python path to resolve imports
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
@@ -13,6 +15,9 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 # Now we can import from our app packages
 from app.routes.fetch import router as fetch_router
 from app.core.database import init_db
+
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -41,14 +46,22 @@ app.add_middleware(
 )
 
 @app.on_event("startup")
+@retry(
+    wait=wait_fixed(5),
+    stop=stop_after_attempt(6),
+    before_sleep=before_sleep_log(logger, logging.INFO),
+)
 async def startup_event():
-    """Initialize database on startup"""
-    print("INFO:     Starting up and initializing database...")
+    """
+    Initialize the database connection on startup with retry logic.
+    """
     try:
+        logger.info("Attempting to connect to the database...")
         init_db()
+        logger.info("Database connection successful.")
     except Exception as e:
-        print(f"ERROR:    Database initialization failed: {e}")
-        print("INFO:     Application will continue without database persistence.")
+        logger.error(f"Database connection failed after multiple retries: {e}")
+        logger.warning("Application will continue without database persistence.")
 
 # Include API router
 app.include_router(fetch_router, prefix="/api")
@@ -73,5 +86,6 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    print("INFO:     Starting server with Uvicorn...")
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    logger.info(f"Starting server with Uvicorn on port {port}...")
+    uvicorn.run(app, host="0.0.0.0", port=port, reload=True)
