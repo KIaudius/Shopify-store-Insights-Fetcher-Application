@@ -253,4 +253,5 @@ For issues or questions:
 
 ---
 
-**Built with ❤️ for the GenAI Developer Intern Assignment**
+**Built By Anshuman Mukherjee ❤️ for the GenAI Developer Intern Assignment at DeepSolv**
+*This Read.ME is AI Generated*
