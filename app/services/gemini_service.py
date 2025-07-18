@@ -4,7 +4,7 @@ import os
 import json
 import time
 from typing import List, Dict, Any
-from google import genai
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
