@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: shopify-insights-fetcher
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MYSQL_HOST
+        value: localhost
+      - key: MYSQL_PORT
+        value: 3306
+      - key: MYSQL_USER
+        value: root
+      - key: MYSQL_PASSWORD
+        sync: false
+      - key: MYSQL_DATABASE
+        value: shopify_insights
+      - key: DEBUG
+        value: false
